@@ -17,6 +17,7 @@ export class NordPoolService {
       return this.cachedPrices;
     }
 
+    let url = '';
     try {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
@@ -26,7 +27,7 @@ export class NordPoolService {
       const startIso = start.toISOString();
       const endIso = end.toISOString();
 
-      const url = `https://dashboard.elering.ee/api/nps/price?start=${startIso}&end=${endIso}`;
+      url = `https://dashboard.elering.ee/api/nps/price?start=${startIso}&end=${endIso}`;
       
       logger.info('Fetching prices from Elering API', { url });
       
