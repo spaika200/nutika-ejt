@@ -47,7 +47,7 @@ export const DeviceManager = ({ isOpen, onClose, devices, onDeviceAdded, onDevic
         connectionParams: JSON.parse(formData.connectionParams)
       };
 
-      const res = await fetch('http://localhost:5000/api/devices', {
+      const res = await fetch('/api/devices', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ export const DeviceManager = ({ isOpen, onClose, devices, onDeviceAdded, onDevic
     
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/devices/${id}`, {
+      const res = await fetch(`/api/devices/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

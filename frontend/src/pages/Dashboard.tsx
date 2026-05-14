@@ -34,7 +34,7 @@ const Dashboard = () => {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      const deviceRes = await fetch('http://localhost:5000/api/devices', {
+      const deviceRes = await fetch('/api/devices', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (deviceRes.ok) {
@@ -56,7 +56,7 @@ const Dashboard = () => {
     const fetchData = async () => {
       try {
         // Fetch Prices
-        const priceRes = await fetch('http://localhost:5000/api/prices');
+        const priceRes = await fetch('/api/prices');
         const priceData = await priceRes.json();
         
         const formattedPrices = priceData.map((p: any) => ({
@@ -68,7 +68,7 @@ const Dashboard = () => {
         await fetchDevices();
 
         // Fetch Savings
-        const savingsRes = await fetch('http://localhost:5000/api/savings', {
+        const savingsRes = await fetch('/api/savings', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (savingsRes.ok) {
@@ -77,7 +77,7 @@ const Dashboard = () => {
         }
 
         // Fetch Holiday Mode
-        const holidayRes = await fetch('http://localhost:5000/api/devices/holiday', {
+        const holidayRes = await fetch('/api/devices/holiday', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (holidayRes.ok) {
@@ -108,7 +108,7 @@ const Dashboard = () => {
       // Optimistic update
       setDevices(devices.map(d => d.id === id ? { ...d, status: !currentStatus } : d));
       
-      const res = await fetch(`http://localhost:5000/api/devices/${id}`, {
+      const res = await fetch(`/api/devices/${id}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ const Dashboard = () => {
     const token = localStorage.getItem('token');
     try {
       setDevices(devices.map(d => d.id === id ? { ...d, manualOverride: !currentOverride } : d));
-      const res = await fetch(`http://localhost:5000/api/devices/${id}`, {
+      const res = await fetch(`/api/devices/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ manualOverride: !currentOverride })
@@ -148,7 +148,7 @@ const Dashboard = () => {
     try {
       const newStatus = !holidayMode;
       setHolidayMode(newStatus);
-      const res = await fetch('http://localhost:5000/api/devices/holiday', {
+      const res = await fetch('/api/devices/holiday', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ enable: newStatus })
