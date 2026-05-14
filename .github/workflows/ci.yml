@@ -1,0 +1,43 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install Dependencies (Backend)
+      run: cd backend && bun install
+
+    - name: Run Backend Tests
+      run: cd backend && bun test
+
+    - name: Build Backend
+      run: cd backend && bun run build || echo "No build script needed for backend"
+
+    - name: Install Dependencies (Frontend)
+      run: cd frontend && bun install
+
+    - name: Build Frontend
+      run: cd frontend && bun run build
+
+  deploy:
+    needs: test-and-build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Trigger Coolify Deployment
+      run: |
+        echo "Coolify deployment would be triggered here via Webhook or CLI"
+        # Example: curl -X POST ${{ secrets.COOLIFY_WEBHOOK_URL }}

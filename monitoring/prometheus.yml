@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'nutika-backend'
+    static_configs:
+      - targets: ['app-backend:5000']
