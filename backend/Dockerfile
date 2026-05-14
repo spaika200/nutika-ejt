@@ -14,6 +14,9 @@ RUN bun run build
 FROM oven/bun:1
 WORKDIR /app
 
+# Install ca-certificates for HTTPS requests
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
 COPY package.json bun.lock ./
 COPY prisma ./prisma
 RUN bun install --production --frozen-lockfile
