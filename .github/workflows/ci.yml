@@ -21,7 +21,7 @@ jobs:
       run: cd backend && bun install
 
     - name: Run Backend Tests
-      run: cd backend && bun test
+      run: cd backend && bun run test
 
     - name: Build Backend
       run: cd backend && bun run build || echo "No build script needed for backend"

@@ -47,6 +47,7 @@ export class NordPoolService {
       
       return this.cachedPrices;
 
+    } catch (error) {
       logger.error('Failed to fetch Nord Pool prices', { 
         url,
         error: error instanceof Error ? error.message : String(error),
