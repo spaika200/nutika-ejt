@@ -19,6 +19,19 @@ async function main() {
   });
 
   console.log('Master user created: admin@nutika.ee / admin123');
+
+  const standardPassword = await bcrypt.hash('user123', 10);
+  const standardUser = await prisma.user.upsert({
+    where: { email: 'user@nutika.ee' },
+    update: {},
+    create: {
+      email: 'user@nutika.ee',
+      password: standardPassword,
+      role: 'STANDARD',
+    },
+  });
+
+  console.log('Standard user created: user@nutika.ee / user123');
   
   // Seed a dummy device for visual demo
   await prisma.device.create({
