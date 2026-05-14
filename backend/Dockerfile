@@ -1,4 +1,4 @@
-FROM oven/bun:1-alpine AS builder
+FROM oven/bun:1 AS builder
 WORKDIR /app
 
 COPY package.json bun.lock ./
@@ -11,7 +11,7 @@ RUN bunx prisma generate
 COPY src ./src
 RUN bun run build
 
-FROM oven/bun:1-alpine
+FROM oven/bun:1
 WORKDIR /app
 
 COPY package.json bun.lock ./
