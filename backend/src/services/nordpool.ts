@@ -47,9 +47,10 @@ export class NordPoolService {
       
       return this.cachedPrices;
 
-    } catch (error) {
       logger.error('Failed to fetch Nord Pool prices', { 
-        error: error instanceof Error ? error.message : String(error) 
+        url,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       });
       
       // Fallback to cached prices if API fails (graceful degradation)
