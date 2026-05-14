@@ -1,27 +1,25 @@
-FROM node:20-alpine AS builder
-
+FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json bun.lockb ./
 COPY tsconfig.json ./
-# Assuming prisma schema is in prisma/
-# COPY prisma ./prisma/
+RUN bun install --frozen-lockfile
 
-RUN npm ci
+COPY prisma ./prisma
+RUN bunx prisma generate
 
 COPY src ./src
-RUN npm run build
+RUN bun run build
 
-FROM node:20-alpine
-
+FROM oven/bun:1-alpine
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --omit=dev
+COPY package.json bun.lockb ./
+COPY prisma ./prisma
+RUN bun install --production --frozen-lockfile
+RUN bunx prisma generate
 
 COPY --from=builder /app/dist ./dist
-# COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 5000
-
-CMD ["npm", "start"]
+CMD ["bun", "run", "dist/index.js"]
