@@ -22,4 +22,4 @@ RUN bunx prisma generate
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 5000
-CMD ["sh", "-c", "bunx prisma db push && bun run dist/seed.js && bun run dist/index.js"]
+CMD ["sh", "-c", "bunx prisma db push --accept-data-loss && bun run dist/seed.js && bun run dist/index.js"]
