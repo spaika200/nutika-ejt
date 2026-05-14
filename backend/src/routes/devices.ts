@@ -97,6 +97,11 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
+    // Block manual activation if Holiday Mode is active and device is not critical
+    if (status === true && GlobalState.isHolidayMode && !device.isCritical) {
+      return res.status(400).json({ error: 'Cannot turn on non-critical device during Holiday Mode' });
+    }
+
     const updated = await prisma.device.update({
       where: { id: deviceId },
       data: { 

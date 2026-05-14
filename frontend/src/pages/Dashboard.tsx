@@ -34,7 +34,7 @@ const Dashboard = () => {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      const deviceRes = await fetch('/api/devices', {
+      const deviceRes = await fetch('http://localhost:5000/api/devices', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (deviceRes.ok) {
@@ -56,9 +56,9 @@ const Dashboard = () => {
     const fetchData = async () => {
       try {
         // Fetch Prices
-        const priceRes = await fetch('/api/prices');
+        const priceRes = await fetch('http://localhost:5000/api/prices');
         const priceData = await priceRes.json();
-        
+
         const formattedPrices = priceData.map((p: any) => ({
           time: new Date(p.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           price: parseFloat((p.price / 10).toFixed(2)) // Convert EUR/MWh to cents/kWh
@@ -68,7 +68,7 @@ const Dashboard = () => {
         await fetchDevices();
 
         // Fetch Savings
-        const savingsRes = await fetch('/api/savings', {
+        const savingsRes = await fetch('http://localhost:5000/api/savings', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (savingsRes.ok) {
@@ -77,7 +77,7 @@ const Dashboard = () => {
         }
 
         // Fetch Holiday Mode
-        const holidayRes = await fetch('/api/devices/holiday', {
+        const holidayRes = await fetch('http://localhost:5000/api/devices/holiday', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (holidayRes.ok) {
@@ -107,10 +107,10 @@ const Dashboard = () => {
     try {
       // Optimistic update
       setDevices(devices.map(d => d.id === id ? { ...d, status: !currentStatus } : d));
-      
-      const res = await fetch(`/api/devices/${id}`, {
+
+      const res = await fetch(`http://localhost:5000/api/devices/${id}`, {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -132,7 +132,7 @@ const Dashboard = () => {
     const token = localStorage.getItem('token');
     try {
       setDevices(devices.map(d => d.id === id ? { ...d, manualOverride: !currentOverride } : d));
-      const res = await fetch(`/api/devices/${id}`, {
+      const res = await fetch(`http://localhost:5000/api/devices/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ manualOverride: !currentOverride })
@@ -148,7 +148,7 @@ const Dashboard = () => {
     try {
       const newStatus = !holidayMode;
       setHolidayMode(newStatus);
-      const res = await fetch('/api/devices/holiday', {
+      const res = await fetch('http://localhost:5000/api/devices/holiday', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ enable: newStatus })
@@ -186,7 +186,7 @@ const Dashboard = () => {
           <p className="text-4xl font-bold text-emerald-400">€ {savings.totalSavingsEur.toFixed(2)}</p>
         </div>
         <div className="bg-slate-800/50 backdrop-blur-md p-6 rounded-2xl border border-slate-700 flex flex-col justify-center items-center">
-          <button 
+          <button
             onClick={toggleHolidayMode}
             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${holidayMode ? 'bg-amber-600 hover:bg-amber-500 shadow-[0_0_15px_rgba(217,119,6,0.5)]' : 'bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.5)]'} text-white`}
           >
@@ -207,9 +207,9 @@ const Dashboard = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={prices} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                  <XAxis dataKey="time" stroke="#94a3b8" tick={{fill: '#94a3b8'}} tickMargin={10} minTickGap={30} />
-                  <YAxis stroke="#94a3b8" tick={{fill: '#94a3b8'}} unit="c" />
-                  <Tooltip 
+                  <XAxis dataKey="time" stroke="#94a3b8" tick={{ fill: '#94a3b8' }} tickMargin={10} minTickGap={30} />
+                  <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8' }} unit="c" />
+                  <Tooltip
                     contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
                     itemStyle={{ color: '#38bdf8' }}
                   />
@@ -229,18 +229,18 @@ const Dashboard = () => {
               <Settings size={16} /> Manage
             </button>
           </div>
-          
+
           <div className="space-y-4">
             {devices.length === 0 && !loading && (
               <p className="text-slate-400 text-sm">No devices found.</p>
             )}
             {devices.map(device => (
-              <DeviceCard 
+              <DeviceCard
                 key={device.id}
-                name={device.name} 
-                status={device.status} 
-                threshold={device.thresholdPrice ? `${device.thresholdPrice} EUR/MWh` : 'Manual'} 
-                type={device.connectionType} 
+                name={device.name}
+                status={device.status}
+                threshold={device.thresholdPrice ? `${device.thresholdPrice} EUR/MWh` : 'Manual'}
+                type={device.connectionType}
                 isOverridden={device.manualOverride}
                 onToggle={() => toggleDevice(device.id, device.status)}
                 onOverrideToggle={(e) => { e.stopPropagation(); toggleManualOverride(device.id, device.manualOverride); }}
@@ -249,10 +249,10 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-      
-      <DeviceManager 
-        isOpen={isManageModalOpen} 
-        onClose={() => setIsManageModalOpen(false)} 
+
+      <DeviceManager
+        isOpen={isManageModalOpen}
+        onClose={() => setIsManageModalOpen(false)}
         devices={devices}
         onDeviceAdded={fetchDevices}
         onDeviceDeleted={fetchDevices}
@@ -262,7 +262,7 @@ const Dashboard = () => {
 };
 
 const DeviceCard = ({ name, status, threshold, type, isOverridden, onToggle, onOverrideToggle }: { name: string, status: boolean, threshold: string, type: string, isOverridden: boolean, onToggle: () => void, onOverrideToggle: (e: any) => void }) => (
-  <div 
+  <div
     onClick={onToggle}
     className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex flex-col justify-between group hover:border-slate-500 transition-colors cursor-pointer"
   >
@@ -280,7 +280,7 @@ const DeviceCard = ({ name, status, threshold, type, isOverridden, onToggle, onO
         <div className={`text-xs font-bold px-2 py-1 rounded transition-colors ${status ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
           {status ? 'ON' : 'OFF'}
         </div>
-        <button 
+        <button
           onClick={onOverrideToggle}
           className={`text-[10px] px-2 py-0.5 rounded border ${isOverridden ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
         >
