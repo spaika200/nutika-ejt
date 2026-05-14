@@ -18,10 +18,11 @@ export class SavingsCalculator {
     fixedRateKwh: number,
     powerConsumptionKw: number,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    prismaClient = prisma
   ) {
     // 1. Fetch all ON/OFF logs for the device in the given period
-    const logs = await prisma.deviceLog.findMany({
+    const logs = await prismaClient.deviceLog.findMany({
       where: {
         deviceId,
         timestamp: { gte: startDate, lte: endDate },
@@ -31,7 +32,7 @@ export class SavingsCalculator {
     });
 
     if (logs.length === 0) {
-      return { automatedCost: 0, fixedCost: 0, savingsEur: 0, savingsPercentage: 0 };
+      return { automatedCost: 0, fixedCost: 0, savingsEur: 0, savingsPercentage: 0, totalActiveHours: 0 };
     }
 
     // 2. Fetch historical Nord Pool prices for the same period

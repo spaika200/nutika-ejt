@@ -1,17 +1,10 @@
 import { SavingsCalculator } from '../services/savings';
 
-// Mock Prisma
-jest.mock('@prisma/client', () => {
-  const mPrismaClient = {
-    deviceLog: {
-      findMany: jest.fn()
-    }
-  };
-  return { PrismaClient: jest.fn(() => mPrismaClient) };
-});
-
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+const mockPrisma = {
+  deviceLog: {
+    findMany: jest.fn()
+  }
+} as any;
 
 describe('SavingsCalculator', () => {
   beforeEach(() => {
@@ -19,9 +12,9 @@ describe('SavingsCalculator', () => {
   });
 
   it('should return zero savings if no logs exist', async () => {
-    (prisma.deviceLog.findMany as jest.Mock).mockResolvedValue([]);
+    mockPrisma.deviceLog.findMany.mockResolvedValue([]);
     
-    const result = await SavingsCalculator.calculateSavings(1, 0.15, 2.0, new Date('2024-01-01'), new Date('2024-01-02'));
+    const result = await SavingsCalculator.calculateSavings(1, 0.15, 2.0, new Date('2024-01-01'), new Date('2024-01-02'), mockPrisma);
     
     expect(result.totalActiveHours).toBe(0);
     expect(result.savingsEur).toBe(0);
@@ -31,7 +24,7 @@ describe('SavingsCalculator', () => {
     const start = new Date('2024-01-01T10:00:00Z');
     const end = new Date('2024-01-01T14:00:00Z');
 
-    (prisma.deviceLog.findMany as jest.Mock).mockResolvedValue([
+    mockPrisma.deviceLog.findMany.mockResolvedValue([
       { command: 'ON', timestamp: new Date('2024-01-01T11:00:00Z') },
       { command: 'OFF', timestamp: new Date('2024-01-01T13:00:00Z') } // 2 hours active
     ]);
@@ -39,7 +32,7 @@ describe('SavingsCalculator', () => {
     const fixedRate = 0.15; // 15 cents/kWh
     const powerKw = 2.0;
 
-    const result = await SavingsCalculator.calculateSavings(1, fixedRate, powerKw, start, end);
+    const result = await SavingsCalculator.calculateSavings(1, fixedRate, powerKw, start, end, mockPrisma);
     
     expect(result.totalActiveHours).toBe(2);
     // 2 hours * 2 kW = 4 kWh
