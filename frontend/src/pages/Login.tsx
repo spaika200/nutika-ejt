@@ -4,17 +4,21 @@ import { useNavigate } from 'react-router-dom';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setMessage('');
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -23,11 +27,17 @@ const Login = () => {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(data.error || (isRegister ? 'Registration failed' : 'Login failed'));
       }
 
-      localStorage.setItem('token', data.token);
-      navigate('/dashboard');
+      if (isRegister) {
+        setMessage('Registration successful! You can now log in.');
+        setIsRegister(false);
+        setPassword('');
+      } else {
+        localStorage.setItem('token', data.token);
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -46,12 +56,15 @@ const Login = () => {
           <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-2">
             Nutika EJT
           </h1>
-          <p className="text-slate-400">Sign in to control your smart grid</p>
+          <p className="text-slate-400">
+            {isRegister ? 'Create a new account' : 'Sign in to control your smart grid'}
+          </p>
         </div>
 
         {error && <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg mb-6 text-sm">{error}</div>}
+        {message && <div className="bg-emerald-500/10 border border-emerald-500/50 text-emerald-400 p-3 rounded-lg mb-6 text-sm">{message}</div>}
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
             <input 
@@ -79,9 +92,18 @@ const Login = () => {
             disabled={loading}
             className="w-full bg-gradient-to-r from-blue-500 to-emerald-500 hover:from-blue-600 hover:to-emerald-600 text-white font-medium py-3 rounded-lg transition-all transform active:scale-[0.98] shadow-lg disabled:opacity-50"
           >
-            {loading ? 'Authenticating...' : 'Enter Control Center'}
+            {loading ? 'Processing...' : (isRegister ? 'Create Account' : 'Enter Control Center')}
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <button 
+            onClick={() => setIsRegister(!isRegister)}
+            className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            {isRegister ? 'Already have an account? Sign in' : 'Need an account? Register here'}
+          </button>
+        </div>
 
         <div className="mt-6 text-center">
           <p className="text-sm text-slate-500">
