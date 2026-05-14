@@ -51,9 +51,10 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:latest
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - promdata:/prometheus
     ports:
       - "9090"
