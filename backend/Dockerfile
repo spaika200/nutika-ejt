@@ -1,7 +1,7 @@
 FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 COPY tsconfig.json ./
 RUN bun install --frozen-lockfile
 
@@ -14,7 +14,7 @@ RUN bun run build
 FROM oven/bun:1-alpine
 WORKDIR /app
 
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 COPY prisma ./prisma
 RUN bun install --production --frozen-lockfile
 RUN bunx prisma generate
