@@ -7,6 +7,8 @@ export class SavingsCalculator {
    * Calculates the savings of a device by comparing its actual automated cost
    * versus a fixed electricity package cost over a specified period.
    * 
+   * Uses historical prices for accurate calculation instead of dummy average.
+   * 
    * @param deviceId ID of the device
    * @param fixedRateKwh The user's alternative fixed rate in EUR/kWh
    * @param powerConsumptionKw The power consumption of the device in kW
@@ -35,13 +37,8 @@ export class SavingsCalculator {
       return { automatedCost: 0, fixedCost: 0, savingsEur: 0, savingsPercentage: 0, totalActiveHours: 0 };
     }
 
-    // 2. Fetch historical Nord Pool prices for the same period
-    // In a real implementation, these would be stored in the DB to avoid relying on the API for old data.
-    // Assuming a DB table `HistoricalPrice` exists:
-    // const prices = await prisma.historicalPrice.findMany({ ... });
-    
-    // For this example, we calculate total active hours based on logs
-    let totalActiveHours = 0;
+    // 2. Build ON/OFF periods with associated timestamps
+    const activePeriods: Array<{ start: Date; end: Date; hours: number }> = [];
     let lastOnTime: Date | null = null;
 
     for (const log of logs) {
@@ -49,7 +46,8 @@ export class SavingsCalculator {
         lastOnTime = log.timestamp;
       } else if (log.command === 'OFF' && lastOnTime) {
         const diffMs = log.timestamp.getTime() - lastOnTime.getTime();
-        totalActiveHours += diffMs / (1000 * 60 * 60);
+        const hours = diffMs / (1000 * 60 * 60);
+        activePeriods.push({ start: lastOnTime, end: log.timestamp, hours });
         lastOnTime = null;
       }
     }
@@ -57,19 +55,40 @@ export class SavingsCalculator {
     // If it was turned ON and never turned OFF by the end of the period
     if (lastOnTime) {
       const diffMs = endDate.getTime() - lastOnTime.getTime();
-      totalActiveHours += diffMs / (1000 * 60 * 60);
+      const hours = diffMs / (1000 * 60 * 60);
+      activePeriods.push({ start: lastOnTime, end: endDate, hours });
     }
 
-    // Note: To accurately calculate "Automated Cost", we would multiply each active segment
-    // by the exact Nord Pool price during that hour. 
-    // This is a simplified estimation for the prototype.
-    const averageNordPoolPriceKwh = 0.05; // Dummy average (5 cents/kWh)
-    
-    const totalConsumptionKwh = totalActiveHours * powerConsumptionKw;
-    
-    const automatedCost = totalConsumptionKwh * averageNordPoolPriceKwh;
+    // 3. Calculate total consumption
+    let totalConsumptionKwh = 0;
+    for (const period of activePeriods) {
+      totalConsumptionKwh += period.hours * powerConsumptionKw;
+    }
+
+    // 4. Calculate automated cost using historical prices
+    let automatedCost = 0;
+    for (const period of activePeriods) {
+      // Get average price during this ON period
+      const periodPrices = await prismaClient.historicalPrice.findMany({
+        where: {
+          timestamp: {
+            gte: Math.floor(period.start.getTime() / 1000),
+            lte: Math.floor(period.end.getTime() / 1000)
+          }
+        }
+      });
+
+      if (periodPrices.length > 0) {
+        const avgPrice = periodPrices.reduce((sum, p) => sum + p.priceEur, 0) / periodPrices.length;
+        const pricePerKwh = avgPrice / 1000; // Convert EUR/MWh to EUR/kWh
+        automatedCost += period.hours * powerConsumptionKw * pricePerKwh;
+      }
+    }
+
+    // 5. Calculate fixed cost
     const fixedCost = totalConsumptionKwh * fixedRateKwh;
 
+    // 6. Calculate savings
     const savingsEur = fixedCost - automatedCost;
     const savingsPercentage = fixedCost > 0 ? (savingsEur / fixedCost) * 100 : 0;
 
@@ -78,7 +97,7 @@ export class SavingsCalculator {
       fixedCost: Number(fixedCost.toFixed(2)),
       savingsEur: Number(savingsEur.toFixed(2)),
       savingsPercentage: Number(savingsPercentage.toFixed(2)),
-      totalActiveHours: Number(totalActiveHours.toFixed(2))
+      totalActiveHours: Number(activePeriods.reduce((sum, p) => sum + p.hours, 0).toFixed(2))
     };
   }
 }

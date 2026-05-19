@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { GlobalState } from '../services/globalState';
+import { DeviceConnectionService } from '../services/deviceConnection';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -78,6 +79,23 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     res.status(201).json(device);
   } catch (error) {
     logger.error('Failed to add device', { error });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Test device connection
+router.post('/test-connection', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { connectionType, connectionParams } = req.body;
+
+    if (!connectionType || !connectionParams) {
+      return res.status(400).json({ error: 'Missing connection type or parameters' });
+    }
+
+    const result = await DeviceConnectionService.testConnection(connectionType, JSON.stringify(connectionParams));
+    res.json(result);
+  } catch (error) {
+    logger.error('Failed to test connection', { error });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

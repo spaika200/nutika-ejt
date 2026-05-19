@@ -3,20 +3,9 @@ import { NordPoolService } from './nordpool';
 import { logger } from '../utils/logger';
 import { GlobalState } from './globalState';
 import { sendTelegramNotification } from './notifications';
+import { DeviceConnectionService } from './deviceConnection';
 
 const prisma = new PrismaClient();
-
-// In a real app, this would make an HTTP or MQTT request to the actual device.
-async function toggleDevicePhysical(device: any, turnOn: boolean) {
-  logger.info(`Sending physical command to device ${device.id} (${device.name})`, {
-    command: turnOn ? 'ON' : 'OFF',
-    connection: device.connectionType
-  });
-  
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return true; 
-}
 
 export async function runAutomationCycle() {
   try {
@@ -43,9 +32,11 @@ export async function runAutomationCycle() {
       // Holiday mode check
       if (GlobalState.isHolidayMode && !device.isCritical) {
         if (device.status) {
-          await toggleDevicePhysical(device, false);
-          await prisma.device.update({ where: { id: device.id }, data: { status: false } });
-          await prisma.deviceLog.create({ data: { deviceId: device.id, command: 'OFF' } });
+          const result = await DeviceConnectionService.sendCommand(device.connectionType, device.connectionParams, 'OFF');
+          if (result.success) {
+            await prisma.device.update({ where: { id: device.id }, data: { status: false } });
+            await prisma.deviceLog.create({ data: { deviceId: device.id, command: 'OFF' } });
+          }
         }
         continue; // Skip threshold evaluation during holiday mode
       }
@@ -54,18 +45,18 @@ export async function runAutomationCycle() {
       const shouldBeOn = currentPrice <= threshold;
 
       if (shouldBeOn && !device.status) {
-        const success = await toggleDevicePhysical(device, true);
-        if (success) {
+        const result = await DeviceConnectionService.sendCommand(device.connectionType, device.connectionParams, 'ON');
+        if (result.success) {
           await prisma.device.update({ where: { id: device.id }, data: { status: true } });
           await prisma.deviceLog.create({ data: { deviceId: device.id, command: 'ON' } });
-          sendTelegramNotification(`⚡ Price dropped! Turned ON ${device.name} (Price: ${currentPrice}€)`);
+          sendTelegramNotification(`⚡ Price dropped! Turned ON ${device.name} (Price: ${currentPrice}€/MWh)`);
         }
       } else if (!shouldBeOn && device.status) {
-        const success = await toggleDevicePhysical(device, false);
-        if (success) {
+        const result = await DeviceConnectionService.sendCommand(device.connectionType, device.connectionParams, 'OFF');
+        if (result.success) {
           await prisma.device.update({ where: { id: device.id }, data: { status: false } });
           await prisma.deviceLog.create({ data: { deviceId: device.id, command: 'OFF' } });
-          sendTelegramNotification(`🔴 Price exceeded threshold! Turned OFF ${device.name} (Price: ${currentPrice}€)`);
+          sendTelegramNotification(`🔴 Price exceeded threshold! Turned OFF ${device.name} (Price: ${currentPrice}€/MWh)`);
         }
       }
     }

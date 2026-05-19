@@ -1,4 +1,7 @@
 import { logger } from '../utils/logger';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 interface EleringPrice {
   timestamp: number;
@@ -46,6 +49,9 @@ export class NordPoolService {
       this.cachedPrices = data.data.ee;
       this.lastFetchTime = now;
       
+      // Store prices in database for historical calculations
+      await this.storeHistoricalPrices(this.cachedPrices);
+      
       return this.cachedPrices;
 
     } catch (error) {
@@ -62,6 +68,31 @@ export class NordPoolService {
       }
       
       return [];
+    }
+  }
+
+  // Store prices in database for historical records
+  private static async storeHistoricalPrices(prices: EleringPrice[]) {
+    try {
+      for (const price of prices) {
+        await prisma.historicalPrice.upsert({
+          where: {
+            timestamp_region: {
+              timestamp: price.timestamp,
+              region: 'ee'
+            }
+          },
+          update: { priceEur: price.price },
+          create: {
+            timestamp: price.timestamp,
+            priceEur: price.price,
+            region: 'ee'
+          }
+        });
+      }
+    } catch (error) {
+      logger.warn('Failed to store historical prices', { error });
+      // Don't fail the entire operation if storage fails
     }
   }
 

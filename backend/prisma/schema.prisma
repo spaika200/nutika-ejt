@@ -47,3 +47,14 @@ model DeviceLog {
   device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   timestamp DateTime @default(now())
 }
+
+model HistoricalPrice {
+  id        Int      @id @default(autoincrement())
+  timestamp Int      // Unix timestamp (seconds) - unique per hour
+  priceEur  Float    // Price in EUR/MWh
+  region    String   @default("ee") // Estonia
+  fetchedAt DateTime @default(now())
+  
+  @@unique([timestamp, region])
+  @@index([timestamp])
+}
