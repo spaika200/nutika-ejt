@@ -38,6 +38,8 @@ const Login = () => {
         setPassword('');
       } else {
         localStorage.setItem('token', data.token);
+        localStorage.setItem('role', data.role);
+        localStorage.setItem('email', data.email);
         navigate('/dashboard');
       }
     } catch (err: any) {

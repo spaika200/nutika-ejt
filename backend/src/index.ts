@@ -6,6 +6,7 @@ import client from 'prom-client';
 import authRoutes from './routes/auth';
 import deviceRoutes from './routes/devices';
 import savingsRoutes from './routes/savings';
+import userRoutes from './routes/users';
 import { NordPoolService } from './services/nordpool';
 import { runAutomationCycle } from './services/automation';
 
@@ -52,6 +53,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/savings', savingsRoutes);
+app.use('/api/users', userRoutes);
 
 // Elering Prices endpoint
 app.get('/api/prices', async (req: Request, res: Response) => {

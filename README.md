@@ -1,20 +1,27 @@
 # Nutika Elektrivõrgu Juhtimiskeskus (Smart Power Grid Control Center)
 
-**Intelligent management system for smart home devices based on real-time Nord Pool electricity prices.**
+**An intelligent energy management dashboard for smart home devices based on real-time Nord Pool electricity prices.**
 
 ![Status](https://img.shields.io/badge/status-production--ready-green)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Node Version](https://img.shields.io/badge/node-%3E%3D18.0-blue)
 
+---
+
 ## 📋 Table of Contents
 
 - [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Quick Start](#quick-start)
-- [Project Structure](#project-structure)
-- [Deployment](#deployment)
-- [Configuration](#configuration)
+- [Functional Modules](#functional-modules)
+- [Technology Stack](#technology-stack)
+- [How to Download and Setup (Quick Start)](#how-to-download-and-setup-quick-start)
+  - [Step 1: Clone from GitHub](#step-1-clone-from-github)
+  - [Step 2: Restoring Backend & Frontend Packages](#step-2-restoring-backend--frontend-packages)
+  - [Step 3: Setup Environment Configuration](#step-3-setup-environment-configuration)
+  - [Step 4: Sync and Seed Database](#step-4-sync-and-seed-database)
+  - [Step 5: Run the Project](#step-5-run-the-project)
+- [Project Architecture](#project-architecture)
+- [Running Automated Tests](#running-automated-tests)
+- [Coolify Deployment](#coolify-deployment)
 - [API Reference](#api-reference)
 - [Troubleshooting](#troubleshooting)
 
@@ -22,462 +29,250 @@
 
 ## Overview
 
-Nutika EJT is a full-stack web application that automates control of smart home devices based on electricity prices. When Nord Pool prices drop below configured thresholds, devices automatically turn ON. When prices exceed thresholds, devices turn OFF. This maximizes savings on electricity costs.
+**Nutika EJT** is a complete full-stack web application designed for smart home automation and active energy cost optimization.
 
-### Key Features
-
-✅ **Real-time Price Monitoring** - Fetches 24-hour Nord Pool prices from Elering API  
-✅ **Automated Device Control** - Turn devices ON/OFF based on price thresholds  
-✅ **Manual Override** - Disable automation for specific devices  
-✅ **Holiday Mode** - Force all non-critical devices OFF  
-✅ **Savings Calculator** - Compare automated vs fixed-rate costs  
-✅ **Multiple Device Types** - IP, API, MQTT device support  
-✅ **Role-Based Access** - Master/Standard user permissions  
-✅ **Telegram Notifications** - Get alerts on device automation  
-✅ **Historical Tracking** - Log all device commands for auditing  
-✅ **Production Ready** - Prometheus metrics, structured logging, health checks  
+The system retrieves real-time 24-hour Nord Pool electricity price forecasts using the public Elering API. Smart home appliances (like water heaters, EV chargers, and heat pumps) are automatically toggled ON or OFF based on user-defined maximum price thresholds. Non-critical devices are paused during high-tariff hours or during vacation mode, generating significant passive energy savings without manual intervention.
 
 ---
 
-## Features
+## Functional Modules
 
-### 1. User Management ✅
-- JWT-based authentication with 24-hour token expiry
-- Bcrypt password hashing (10 rounds)
-- Role-Based Access Control (RBAC):
-  - **MASTER**: View/manage all devices and users
-  - **STANDARD**: View/manage only own devices
-- User registration and login endpoints
+### 1. User Management (User Master) 🆕
+* **Multi-User Access**: Secure concurrent system access for multiple users.
+* **Role-Based Authorization (RBAC)**:
+  * `MASTER` (Administrator): Accesses all devices, system metrics, and logs. Exclusive permission to manage all accounts.
+  * `STANDARD` (Regular User): Can only view and control their own registered devices, reports, and settings.
+* **Administration Interface (User Master)**: Exclusive to `MASTER` users, allowing them to:
+  * View a grid list of all registered accounts.
+  * Register new standard or master users.
+  * Activate/Deactivate users instantly.
+  * Change user role authorization.
+  * Permanently delete accounts.
+* **Administrative Safeguards**: Strict safety boundaries prevent `MASTER` users from deactivating, demoting, or deleting their own account to avoid system lockout.
+* **Access Control**: Modified login endpoints reject deactivated user tokens immediately.
 
-### 2. Device Management ✅
-- Create, read, update, delete IoT devices
-- Support for 3 connection types:
-  - **IP**: Direct HTTP API to device (Shelly, Tasmota, etc.)
-  - **API**: Third-party REST endpoints
-  - **MQTT**: Message broker based devices
-- Connection testing before adding device
-- Device status tracking (ON/OFF)
-- Manual override toggle (disables automation)
-- Critical device flag (stays on in Holiday Mode)
-- Command logging (ON/OFF/STATUS_CHECK)
+### 2. Device Management
+* Full CRUD operations for smart IoT devices.
+* Supports 3 connection types:
+  * **IP**: Direct local network control (Shelly, Tasmota, etc.) via HTTP relays.
+  * **API**: Third-party REST endpoint communication.
+  * **MQTT**: Message broker queue topics.
+* Connection validation testing before registering a device.
+* Real-time status tracking (ONLINE/OFFLINE, ON/OFF).
+* Critical device flag: Mark essential devices (e.g. Fridge, Security) to keep them operational during Vacation Mode.
+* Manual Override: Instantly take manual control of a device, bypassing automatic price controls.
 
-### 3. Automation Engine ✅
-- Runs every 60 seconds
-- Fetches current Nord Pool price
-- Evaluates all devices with thresholds
-- Automatically toggles devices based on:
-  - Current price vs threshold
-  - Manual override status
-  - Holiday mode status
-- Sends Telegram notifications on state changes
-- Graceful error handling
+### 3. Automation Engine
+* Evaluates price levels every 60 seconds.
+* Matches current Nord Pool price against individual device thresholds.
+* Automatically turns devices ON when the price is less than or equal to the threshold, and OFF when it exceeds the threshold.
+* Automatically integrates Vacation Mode and Cooldown rules.
+* Dispatches real-time Telegram alerts on state changes or price spikes.
 
-### 4. Pricing & Forecasting ✅
-- Real-time price fetching from Elering API
-- 24-hour forecast visualization
-- 1-hour caching to reduce API calls
-- Graceful fallback to cached prices
-- Historical price storage in database
-
-### 5. Savings Report ✅
-- Calculates actual savings using historical prices
-- Compares automated cost vs fixed-rate packages
-- Shows EUR savings and percentage
-- Daily/Weekly/Monthly statistics
-- Aggregates across all user devices
-
-### 6. Monitoring & Logging ✅
-- Prometheus metrics export (`/metrics`)
-- Winston structured JSON logging
-- Loki log aggregation support
-- Health check endpoint (`/health`)
-- Request latency tracking
-
-### 7. Frontend Dashboard ✅
-- Real-time price chart visualization
-- Device status display with manual controls
-- Savings statistics display
-- Holiday Mode toggle
-- Device manager modal (add/edit/delete)
-- Responsive design (Tailwind CSS)
-- Dark mode theme
+### 4. Pricing & Savings Reports
+* visualizes the 24-hour Nord Pool forecast using an interactive line chart.
+* Stores historical prices in Neon database for tracking and calculations.
+* Caches Elering API responses in Memory/Redis for 1 hour to prevent rate limiting.
+* **Savings Calculator**: Compares actual automated pricing costs against a standard fixed-rate utility package, calculating savings in Euros and percentages over a 7-day period.
 
 ---
 
-## Tech Stack
+## Technology Stack
 
-### Backend
-- **Runtime**: Bun.js (can use Node.js)
-- **Framework**: Express.js 4.x
-- **Language**: TypeScript 5.x
-- **ORM**: Prisma 5.x
-- **Database**: PostgreSQL (Neon)
-- **Cache**: Redis 7.x
-- **Auth**: JWT + bcrypt
-- **Logging**: Winston + Loki
-- **Metrics**: Prometheus client
-- **Testing**: Jest + Supertest
-
-### Frontend
-- **Framework**: React 18.x
-- **Build Tool**: Vite 5.x
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS 3.x
-- **Routing**: React Router v6
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **Testing**: Vitest
-
-### Infrastructure
-- **Containers**: Docker + Docker Compose
-- **Databases**: PostgreSQL 15 (Neon), Redis 7
-- **Reverse Proxy**: Nginx
-- **Monitoring**: Prometheus, Grafana, Loki
-- **Deployment**: Coolify (or any Docker-compatible platform)
+| Layer | Technologies |
+|---|---|
+| **Backend API** | Node.js (or Bun), Express.js 4.x, TypeScript 5.x |
+| **Frontend UI** | React 18.x, Vite 5.x, TypeScript, Tailwind CSS 3.x, Recharts |
+| **Database** | PostgreSQL (Neon Database) + Prisma ORM |
+| **Caching** | Redis 7.x (alpine) |
+| **Testing** | Jest, Supertest, Vitest |
+| **Logging** | Winston (structured JSON logs) + Loki |
+| **Monitoring** | Prometheus metrics (exported at `/metrics`) + Grafana |
+| **Deployment** | Docker, Docker Compose, Coolify PaaS |
 
 ---
 
-## Quick Start
+## How to Download and Setup (Quick Start)
 
-### Prerequisites
+Follow these step-by-step instructions to get the application running locally or in production.
 
-- Docker & Docker Compose
-- Git
-- Node.js 18+ (for local development without Docker)
+### Step 1: Clone from GitHub
 
-### Local Development
+First, copy the repository link from GitHub and clone the project to your local machine:
 
 ```bash
-# Clone repository
+# Clone the repository
 git clone https://github.com/YOUR_USERNAME/nutika-ejt.git
+
+# Navigate into the project folder
 cd nutika-ejt
-
-# Copy environment template
-cp .env.example .env
-# Edit .env with your values (especially JWT_SECRET, database URL, telegram token)
-
-# Start all services with Docker Compose
-docker-compose up -d
-
-# Run database migrations
-docker-compose exec app-backend bunx prisma db push --accept-data-loss
-
-# Seed database with demo users and devices
-docker-compose exec app-backend bun run dist/seed.js
-
-# View logs
-docker-compose logs -f
-
-# Access applications
-# Frontend: http://localhost:80
-# Backend API: http://localhost:5000
-# Grafana: http://localhost:3000 (admin/admin)
-```
-
-### Demo Credentials
-
-After seeding:
-- **Master User**: `admin@nutika.ee` / `admin123`
-- **Standard User**: `user@nutika.ee` / `user123`
-
-⚠️ **Change these passwords in production!**
-
----
-
-## Project Structure
-
-```
-nutika-ejt/
-├── .github/
-│   └── workflows/
-│       └── ci-cd.yml                 # GitHub Actions CI/CD pipeline
-│
-├── backend/
-│   ├── src/
-│   │   ├── index.ts                  # Express server setup
-│   │   ├── seed.ts                   # Database seeding
-│   │   ├── middleware/
-│   │   │   └── auth.ts               # JWT authentication
-│   │   ├── routes/
-│   │   │   ├── auth.ts               # Login/Register endpoints
-│   │   │   ├── devices.ts            # Device CRUD + Holiday Mode
-│   │   │   └── savings.ts            # Savings calculation endpoint
-│   │   ├── services/
-│   │   │   ├── automation.ts         # Automation cycle (60s)
-│   │   │   ├── deviceConnection.ts   # Device control logic
-│   │   │   ├── nordpool.ts           # Elering API integration
-│   │   │   ├── savings.ts            # Savings calculator
-│   │   │   ├── notifications.ts      # Telegram integration
-│   │   │   └── globalState.ts        # Holiday mode state
-│   │   ├── utils/
-│   │   │   └── logger.ts             # Winston logging
-│   │   └── __tests__/
-│   │       ├── nordpool.test.ts
-│   │       └── savings.test.ts
-│   ├── prisma/
-│   │   └── schema.prisma             # Database schema
-│   ├── Dockerfile
-│   ├── jest.config.js
-│   ├── package.json
-│   └── tsconfig.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── App.tsx                   # Router setup
-│   │   ├── main.tsx
-│   │   ├── pages/
-│   │   │   ├── Dashboard.tsx         # Main dashboard
-│   │   │   └── Login.tsx             # Auth page
-│   │   ├── components/
-│   │   │   └── DeviceManager.tsx     # Device management modal
-│   │   └── index.css
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   ├── package.json
-│   └── index.html
-│
-├── monitoring/
-│   ├── Dockerfile
-│   └── prometheus.yml                # Prometheus config
-│
-├── docker-compose.yaml               # Full stack orchestration
-├── .env.example                      # Environment template
-├── .env                              # Local environment (DO NOT COMMIT)
-├── .gitignore
-├── README.md                         # This file
-├── COOLIFY_DEPLOYMENT.md             # Deployment guide
-└── task.md                           # Project tasks/requirements
 ```
 
 ---
 
-## Deployment
+### Step 2: Restoring Backend & Frontend Packages
 
-### Quick Deployment to Coolify
+Install the required Node.js package dependencies inside both the backend and frontend directories:
 
-See [COOLIFY_DEPLOYMENT.md](./COOLIFY_DEPLOYMENT.md) for comprehensive deployment guide.
+```bash
+# 1. Install Backend dependencies
+cd backend
+npm install
 
-**TL;DR:**
-
-1. Create Coolify project and add Docker Compose resource
-2. Connect GitHub repository
-3. Add environment variables (secrets) in Coolify:
-   - `DATABASE_URL` (Neon PostgreSQL)
-   - `JWT_SECRET` (generate random 32+ char string)
-   - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_CHAT_ID`
-   - `VITE_API_URL` (your domain or IP)
-4. Deploy and run database migrations
-5. Access application at configured domain
+# 2. Install Frontend dependencies
+cd ../frontend
+npm install
+```
 
 ---
 
-## Configuration
+### Step 3: Setup Environment Configuration
 
-### Environment Variables
+The application requires environment variables for database connectivity, security, and external services.
 
-See `.env.example` for all available options. Key variables:
+1. Go back to the root of the project:
+   ```bash
+   cd ..
+   ```
+2. Copy the `.env.example` template to create a `.env` file:
+   ```bash
+   cp .env.example .env
+   ```
+3. Open the newly created `.env` file and configure the settings:
+   * **`DATABASE_URL`**: Fill in your Neon PostgreSQL database connection string.
+   * **`JWT_SECRET`**: Set a strong random string (minimum 32 characters) to sign authentication tokens.
+   * **`TELEGRAM_BOT_TOKEN`** & **`TELEGRAM_CHAT_ID`**: (Optional) Add your Telegram bot details to receive automated alerts.
+   * **`VITE_API_URL`**: Set this to the backend URL (e.g. `http://localhost:5000` for local development).
 
-```env
-# Database
-DATABASE_URL=postgresql://...          # Neon PostgreSQL connection
+---
 
-# Application
-NODE_ENV=production
-JWT_SECRET=your-secret-key             # Generate 32+ random chars
-PORT=5000
+### Step 4: Sync and Seed Database
 
-# Frontend
-VITE_API_URL=http://localhost:5000    # Backend API URL
-VITE_APP_NAME=Nutika EJT
+Push your database models to Neon PostgreSQL and seed initial demo accounts/devices:
 
-# Telegram (optional)
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_CHAT_ID=...
+```bash
+# Navigate to backend directory
+cd backend
 
-# Logging
-LOG_LEVEL=info
-LOKI_ENABLED=false                     # Set true if using Loki
+# 1. Generate local Prisma client
+npx prisma generate
+
+# 2. Sync database schema to Neon PostgreSQL
+# (Note: On Windows, ensure you run this with DATABASE_URL loaded)
+npx prisma db push
+
+# 3. Seed database with default admin/user accounts
+npm run seed
 ```
 
-### Database Schema
+After seeding, the database is pre-populated with:
+* 👑 **MASTER Administrator**: `admin@nutika.ee` / Password: `admin123`
+* 👤 **STANDARD Regular User**: `user@nutika.ee` / Password: `user123`
+* ⚡ **3 Demo Devices** (Water Heater, Heat Pump, EV Charger)
 
-**User**
-- id, email (unique), password (hashed), role (MASTER/STANDARD), createdAt, updatedAt
+---
 
-**Device**
-- id, name, description, connectionType, connectionParams (JSON), status (boolean)
-- thresholdPrice (nullable), isCritical, manualOverride, userId (FK), createdAt, updatedAt
+### Step 5: Run the Project
 
-**DeviceLog**
-- id, command (ON/OFF/STATUS_CHECK), deviceId (FK), timestamp
+#### Option A: Running with Docker Compose (Recommended)
+This starts the backend, frontend, Redis, Prometheus, Grafana, and Loki in orchestrated containers:
 
-**HistoricalPrice**
-- id, timestamp, priceEur (EUR/MWh), region (ee), fetchedAt
+```bash
+# Navigate to the root directory
+cd ..
+
+# Start all Docker services
+docker-compose up -d --build
+
+# The application is now running!
+# Frontend (UI): http://localhost:80
+# Backend (API): http://localhost:5000
+# Grafana: http://localhost:3000
+```
+
+#### Option B: Running Locally for Development
+If you prefer to run the application components manually:
+
+```bash
+# 1. In one terminal, start the Backend API:
+cd backend
+npm run dev
+
+# 2. In another terminal, start the Frontend React app:
+cd frontend
+npm run dev
+```
+
+---
+
+## Running Automated Tests
+
+A comprehensive unit and integration test suite is implemented for maximum stability:
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Run the test suite using Jest
+npm test
+```
+
+The test runner will execute:
+1. **Savings Calculator Tests**: Validates historical price math, active hours logic, and savings calculation.
+2. **Nord Pool Fetcher Tests**: Validates Elering API integration, response caching, and offline cached fallbacks.
+3. **User Management API Tests**: Validates account CRUD, role security middleware, user deactivation, and self-modification protections.
+
+---
+
+## Coolify Deployment
+
+Nutika EJT is designed for automated containerized hosting on **Coolify**:
+
+1. Create a **New Project** in Coolify.
+2. Add a **Docker Compose** resource and link your GitHub repository.
+3. Configure all secrets (like `DATABASE_URL`, `JWT_SECRET`, and `VITE_API_URL`) in Coolify's Secrets panel.
+4. Click **Deploy**. Coolify automatically pulls the repo, builds the production containers, migrates the PostgreSQL database, seeds default users, and serves the app with HTTPS.
+5. Refer to [COOLIFY_DEPLOYMENT.md](./COOLIFY_DEPLOYMENT.md) for a detailed 13-step setup guide.
 
 ---
 
 ## API Reference
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login, returns JWT token
+* `POST /api/auth/register` - Register a new user.
+* `POST /api/auth/login` - Authenticate account and return a 24-hour JWT token.
+
+### User Administration (Master Only)
+* `GET /api/users` - Retrieve all accounts (excluding passwords).
+* `POST /api/users` - Create a new user (role MASTER or STANDARD).
+* `PATCH /api/users/:id` - Update user details, change role, or toggle active status.
+* `DELETE /api/users/:id` - Delete a user.
 
 ### Devices
-- `GET /api/devices` - List user's devices (paginated)
-- `POST /api/devices` - Create device
-- `PATCH /api/devices/:id` - Update device (status, threshold, override)
-- `DELETE /api/devices/:id` - Delete device
-- `POST /api/devices/test-connection` - Test device connection
-- `GET /api/devices/holiday` - Get holiday mode status
-- `POST /api/devices/holiday` - Toggle holiday mode
+* `GET /api/devices` - Fetch accessible devices (Master sees all, Standard sees own).
+* `POST /api/devices` - Register a new device.
+* `POST /api/devices/test-connection` - Validate device connectivity parameters.
+* `PATCH /api/devices/:id` - Update status, thresholds, or override settings.
+* `DELETE /api/devices/:id` - Remove a device.
 
-### Pricing & Savings
-- `GET /api/prices` - Get 24-hour price forecast
-- `GET /api/savings` - Calculate savings (last 7 days default)
-
-### Monitoring
-- `GET /metrics` - Prometheus metrics
-- `GET /health` - Health check
-
----
-
-## Testing
-
-### Run Tests
-
-```bash
-# Backend tests
-cd backend
-npm run test
-
-# Frontend tests  
-cd frontend
-npm run test
-
-# CI/CD pipeline (GitHub Actions)
-# Automatically runs on push/PR to main branch
-```
-
-### Test Coverage
-
-- Backend: Unit tests for NordPool API, Savings calculator
-- Frontend: Component tests (Vitest)
-- Integration: API endpoint tests
+### Pricing & System Metrics
+* `GET /api/prices` - Fetch 24-hour Nord Pool price timeline.
+* `GET /api/savings` - Get calculated savings over the last 7 days.
+* `GET /health` - Service health-check.
+* `GET /metrics` - Prometheus scrapable metrics.
 
 ---
 
 ## Troubleshooting
 
-### Database Connection Error
+### "Database migration or connection failed"
+* Double-check your `DATABASE_URL` in the `.env` file.
+* Neon PostgreSQL connection requires `sslmode=require` query parameter at the end of the URL.
+* Verify your local machine or server is not blocked by a database firewall.
 
-```
-Error: connect ECONNREFUSED
-```
-
-**Solution:**
-- Verify DATABASE_URL is correct
-- Test connection: `psql $DATABASE_URL`
-- Ensure Neon database is online
-
-### Frontend Cannot Reach Backend
-
-```
-CORS error or connection refused
-```
-
-**Solution:**
-- Check VITE_API_URL matches backend URL
-- Verify backend is running
-- Check firewall/port mappings
-- Test: `curl http://localhost:5000/health`
-
-### Telegram Notifications Not Sending
-
-**Solution:**
-- Verify TELEGRAM_BOT_TOKEN is correct
-- Check TELEGRAM_CHAT_ID is numeric ID (not username)
-- Verify bot has permission to send messages
-- Check logs for errors
-
-### Docker Build Fails
-
-**Solution:**
-- Clear Docker cache: `docker-compose down -v`
-- Rebuild: `docker-compose up -d --build`
-- Check disk space: `docker system df`
-
----
-
-## Production Checklist
-
-Before deploying to production:
-
-- [ ] Change default JWT_SECRET
-- [ ] Change seed user passwords
-- [ ] Enable HTTPS/SSL
-- [ ] Set up firewall rules
-- [ ] Configure Telegram bot token
-- [ ] Test database backups
-- [ ] Enable monitoring/alerts
-- [ ] Review security settings
-- [ ] Set up log retention
-- [ ] Document admin procedures
-
----
-
-## Contributing
-
-1. Fork repository
-2. Create feature branch: `git checkout -b feature/new-feature`
-3. Make changes and commit
-4. Push and create Pull Request
-5. GitHub Actions will run tests automatically
-
----
-
-## License
-
-MIT License - see LICENSE file for details
-
----
-
-## Support
-
-- **Issues**: https://github.com/YOUR_USERNAME/nutika-ejt/issues
-- **Discussions**: https://github.com/YOUR_USERNAME/nutika-ejt/discussions
-- **Wiki**: https://github.com/YOUR_USERNAME/nutika-ejt/wiki
-
----
-
-## Changelog
-
-### v1.0.0 (Production Ready)
-- ✅ Complete authentication system
-- ✅ Device management with multiple connection types
-- ✅ Real-time price monitoring
-- ✅ Automated device control
-- ✅ Savings calculator with historical data
-- ✅ Holiday mode
-- ✅ Telegram notifications
-- ✅ Production-ready monitoring
-- ✅ Coolify deployment ready
-- ✅ GitHub Actions CI/CD
-
----
-
-## Roadmap
-
-- [ ] WebSocket real-time updates
-- [ ] Mobile app (React Native)
-- [ ] Advanced scheduling (per-device)
-- [ ] SMS/Email notifications
-- [ ] Machine learning price prediction
-- [ ] Multi-region support
-- [ ] REST API documentation (OpenAPI/Swagger)
-- [ ] Admin user management panel
+### "CORS / API Refused connection"
+* Ensure your `VITE_API_URL` variable matches the exact IP/domain of the running backend server.
+* If using custom domains in production, verify your DNS records and SSL status.
 
 ---
 

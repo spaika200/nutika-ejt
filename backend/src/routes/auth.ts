@@ -53,6 +53,10 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    if (user.isActive === false) {
+      return res.status(401).json({ error: 'Account is deactivated' });
+    }
+
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
     
     res.json({ token, role: user.role, email: user.email });

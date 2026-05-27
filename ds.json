@@ -1,0 +1,16 @@
+{
+  "name": "PostgreSQL",
+  "type": "postgres",
+  "url": "ep-little-dream-apv718f4-pooler.c-7.us-east-1.aws.neon.tech:5432",
+  "database": "neondb",
+  "user": "neondb_owner",
+  "secureJsonData": {
+    "password": "npg_nYpSgDxQ37Uk"
+  },
+  "jsonData": {
+    "sslmode": "require",
+    "postgresVersion": 15
+  },
+  "access": "proxy",
+  "isDefault": true
+}

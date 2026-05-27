@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Power, Settings, ShieldAlert, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { DeviceManager } from '../components/DeviceManager';
+import { UserManager } from '../components/UserManager';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -30,7 +31,9 @@ const Dashboard = () => {
   const [holidayMode, setHolidayMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const navigate = useNavigate();
+  const userRole = localStorage.getItem('role') || 'STANDARD';
 
   const fetchDevices = async () => {
     const token = localStorage.getItem('token');
@@ -170,11 +173,17 @@ const Dashboard = () => {
           <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
             Nutika Elektrivõrgu Juhtimiskeskus
           </h1>
-          <p className="text-slate-400 mt-1">Smart Power Grid Control Center</p>
         </div>
-        <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
-          <LogOut size={18} /> Logout
-        </button>
+        <div className="flex items-center gap-4">
+          {userRole === 'MASTER' && (
+            <button onClick={() => setIsUserModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-amber-400 hover:text-amber-300 border border-amber-500/30">
+              <ShieldAlert size={18} /> Users
+            </button>
+          )}
+          <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+            <LogOut size={18} /> Logout
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}
@@ -258,6 +267,11 @@ const Dashboard = () => {
         devices={devices}
         onDeviceAdded={fetchDevices}
         onDeviceDeleted={fetchDevices}
+      />
+
+      <UserManager
+        isOpen={isUserModalOpen}
+        onClose={() => setIsUserModalOpen(false)}
       />
     </div>
   );

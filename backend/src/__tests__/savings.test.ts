@@ -3,6 +3,9 @@ import { SavingsCalculator } from '../services/savings';
 const mockPrisma = {
   deviceLog: {
     findMany: jest.fn()
+  },
+  historicalPrice: {
+    findMany: jest.fn()
   }
 } as any;
 
@@ -27,6 +30,10 @@ describe('SavingsCalculator', () => {
     mockPrisma.deviceLog.findMany.mockResolvedValue([
       { command: 'ON', timestamp: new Date('2024-01-01T11:00:00Z') },
       { command: 'OFF', timestamp: new Date('2024-01-01T13:00:00Z') } // 2 hours active
+    ]);
+    
+    mockPrisma.historicalPrice.findMany.mockResolvedValue([
+      { priceEur: 50 }
     ]);
     
     const fixedRate = 0.15; // 15 cents/kWh

@@ -1,409 +1,146 @@
 # Coolify Deployment Guide - Nutika EJT
 
+This guide explains how to deploy the **Nutika Elektrivõrgu Juhtimiskeskus (Smart Power Grid Control Center)** application to **Coolify**, a modern self-hosted alternative to Heroku/Render.
+
+---
+
 ## Overview
 
-This guide explains how to deploy the Nutika Elektrivõrgu Juhtimiskeskus (Smart Power Grid Control Center) application to **Coolify**, a modern self-hosted alternative to Heroku.
+The Nutika EJT application is fully containerized using **Docker Compose**, orchestrating the following services:
+1. **`app-backend`**: Express API + TypeScript server running in Bun.
+2. **`app-frontend`**: React + Vite UI compiled in Bun and served via Nginx.
+3. **`redis`**: Cache and session store.
+4. **`prometheus`**: Scrapes and exports performance metrics.
+5. **`grafana`** / **`loki`**: Log aggregation and visualization dashboards.
+
+Because of this complete containerization, deploying to Coolify takes just a few clicks!
 
 ---
 
 ## Prerequisites
 
-1. **Coolify Instance**: Self-hosted Coolify server (deployed on your VPS/server)
-2. **GitHub Repository**: Your fork/clone of the Nutika EJT project
-3. **GitHub Personal Access Token** (for private repos)
-4. **Neon PostgreSQL Database**: Already configured (provided by user)
-5. **Telegram Bot Token**: Already obtained (provided by user)
+Before starting, ensure you have:
+1. **Coolify Instance**: A running self-hosted Coolify server on your VPS.
+2. **GitHub Repository**: A fork or clone of the `nutika-ejt` project on GitHub.
+3. **Neon PostgreSQL Database**: A hosted PostgreSQL instance (provided by Neon).
+4. **Telegram Bot Token** (Optional): Bot credentials for real-time notifications.
 
 ---
 
-## Step 1: Set Up Your Coolify Instance
+## ⚠️ CRITICAL DEPLOYMENT GOTCHAS (Read First!)
 
-### 1.1 Install Coolify on Your Server
-
-```bash
-# SSH into your server
-ssh user@your-server-ip
-
-# Install Coolify (one-liner)
-curl -fsSL https://get.coollabs.io/coolify/install.sh | bash
-
-# Follow the installation wizard
-# Access Coolify dashboard at: https://your-server-ip:3000
+### 1. Fully Automated Database Initialization
+You **DO NOT** need to SSH into your server to run database migrations or seed default users!
+The backend `Dockerfile` has an automated startup command:
+```dockerfile
+CMD ["sh", "-c", "bunx prisma db push --accept-data-loss && (bun run dist/seed.js || true) && bun run dist/index.js"]
 ```
+This means as soon as the backend container starts on Coolify, it will:
+* Sync your PostgreSQL database schema to Neon.
+* Seed the default `admin@nutika.ee` / `user@nutika.ee` accounts.
+* Startup the server.
 
-### 1.2 Initial Setup
-
-1. Go to `https://your-server-ip:3000`
-2. Create admin account
-3. Set up SSH key for connecting to your server
-4. Configure Docker settings if needed
-
----
-
-## Step 2: Create a Coolify Project
-
-### 2.1 Create New Project
-
-1. In Coolify dashboard, click **Projects** → **New Project**
-2. Name: `Nutika EJT` (or your preferred name)
-3. Click **Create**
-
-### 2.2 Add Docker Compose Resource
-
-1. In your project, click **New Resource** → **Docker Compose**
-2. Choose **Git**
-3. Fill in:
-   - **Repository URL**: `https://github.com/YOUR_USERNAME/nutika-ejt.git`
-   - **Branch**: `main`
-   - **Dockerfile Location**: `./docker-compose.yaml`
-   - **Compose File Path**: `.` (root directory)
+### 2. Vite Build-Time Environment Variables
+Vite builds static JavaScript files. This means that frontend variables—most importantly **`VITE_API_URL`**—**MUST be present in Coolify's environment variables BEFORE you click Deploy!**
+If you do not configure `VITE_API_URL` first, the frontend will compile with a default fallback and will fail to communicate with the backend API.
 
 ---
 
-## Step 3: Configure Environment Variables in Coolify
+## Step 1: Create a Coolify Project
 
-### 3.1 Add Secrets (Environment Variables)
+1. Log into your Coolify Dashboard.
+2. Go to **Projects** → **New Project**.
+3. Name it `Nutika EJT` and click **Create**.
 
-In the Docker Compose resource settings, go to **Secrets** and add:
+---
 
-```
+## Step 2: Add a Docker Compose Resource
+
+1. Inside your new project, click **New Resource** → **Docker Compose**.
+2. Select **GitHub** (or Git Repository).
+3. Connect your GitHub account and select your `nutika-ejt` repository.
+4. Set the **Branch** to `main`.
+5. Under **Compose File Path**, specify `./docker-compose.yaml` (or leave as root `/`).
+6. Click **Save**.
+
+---
+
+## Step 3: Configure Environment Variables
+
+In your Docker Compose resource settings in Coolify, go to the **Secrets** or **Environment Variables** panel and add the following keys.
+
+```env
+# Database Configuration
 DATABASE_URL=postgresql://neondb_owner:npg_nYpSgDxQ37Uk@ep-little-dream-apv718f4-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
 
-REDIS_URL=redis://redis:6379
+# Application Security
+JWT_SECRET=generate-a-strong-32-character-random-string-here
 
-JWT_SECRET=your-very-long-random-secret-key-min-32-chars-change-this-in-production
-
+# Telegram Notifications (Optional - leaves empty or add values)
 TELEGRAM_BOT_TOKEN=8955879700:AAGKkUvze9z4HB0Iz56jeGIMZQtfu0-GAds
-
 TELEGRAM_CHAT_ID=1171786442
 
-NODE_ENV=production
-
-PORT=5000
-
-LOG_LEVEL=info
-
-LOKI_ENABLED=false
-
-VITE_API_URL=https://your-domain.com  # or http://your-server-ip:5000
-
+# Frontend Build Configurations (MUST BE PRESENT BEFORE BUILD!)
+VITE_API_URL=https://api.yourdomain.com      # URL of your backend API
 VITE_APP_NAME=Nutika Elektrivõrgu Juhtimiskeskus
-```
 
-**IMPORTANT**: 
-- Change `JWT_SECRET` to a strong random string
-- Set `VITE_API_URL` to your actual domain/IP
-- Keep all other values as shown
-
-### 3.2 Persist Secrets Securely
-
-1. **DO NOT commit secrets to git** - Coolify keeps them secure
-2. Use Coolify's Secrets panel exclusively
-3. Never expose secrets in docker-compose.yaml file in git
-
----
-
-## Step 4: Set Up Custom Domains
-
-### 4.1 Configure Domain/Subdomain
-
-If you have a domain:
-
-1. In Coolify, go to your resource → **Domains**
-2. Add your domain (e.g., `nutika.yourdomain.com`)
-3. **Generate SSL Certificate** (automatic via Let's Encrypt)
-4. Update DNS records to point to your server
-
-If using IP address:
-- Use `http://your-server-ip:80` for frontend
-- Use `http://your-server-ip:5000` for backend API
-
-### 4.2 Update Frontend Environment Variables
-
-If using custom domain, update the `VITE_API_URL` secret:
-```
-VITE_API_URL=https://api.yourdomain.com  # or https://your-server-ip:5000
+# Core Settings
+NODE_ENV=production
+PORT=5000
+LOKI_ENABLED=false
 ```
 
 ---
 
-## Step 5: Configure Port Mappings
+## Step 4: Configure Domains and Routing
 
-In Coolify Docker Compose settings, ensure ports are correctly exposed:
+In the Coolify resource configurations:
 
-```yaml
-# Frontend (Nginx): Port 80 → 80
-# Backend (Node): Port 5000 → 5000
-```
+1. **Frontend Routing**:
+   * Map your frontend domain (e.g. `nutika.yourdomain.com` or `http://your-server-ip:80`) to the **`app-frontend`** service.
+   * Coolify will automatically provision free SSL certificates via Let's Encrypt for HTTPS.
 
-Coolify will automatically handle reverse proxy and load balancing.
-
----
-
-## Step 6: Database Initialization
-
-### 6.1 Run Database Migrations
-
-After first deployment, run Prisma migrations:
-
-1. SSH into your server
-2. Connect to the running backend container:
-   ```bash
-   docker-compose exec app-backend bunx prisma db push --accept-data-loss
-   ```
-
-3. Seed the database (optional):
-   ```bash
-   docker-compose exec app-backend bun run dist/seed.js
-   ```
-
-### 6.2 Create Initial Users
-
-Default seeded users:
-- **Master**: `admin@nutika.ee` / `admin123`
-- **Standard**: `user@nutika.ee` / `user123`
-
-Change these passwords after first login!
+2. **Backend API Routing**:
+   * Map your backend domain (e.g. `api.yourdomain.com` or `http://your-server-ip:5000`) to the **`app-backend`** service.
+   * Ensure your `VITE_API_URL` environment variable matches this backend domain.
 
 ---
 
-## Step 7: Enable GitHub Webhooks (Auto-Deploy)
+## Step 5: Deploy!
 
-### 7.1 Setup GitHub Integration
-
-1. In Coolify, go to **Settings** → **GitHub Integration**
-2. Click **Connect GitHub**
-3. Authorize Coolify app
-4. Select your `nutika-ejt` repository
-
-### 7.2 Enable Auto-Deployment
-
-1. In your Docker Compose resource → **Deployment**
-2. Enable **Automatic Deployments**
-3. Choose trigger: `On Push to Main Branch`
-
-Now every time you push to `main`, Coolify auto-deploys!
+1. Click the **Deploy** button in the top right corner of the Coolify dashboard.
+2. Coolify will:
+   * Download your repository.
+   * Pull Docker base images (`bun:1-alpine`, `nginx:alpine`, `redis:7-alpine`).
+   * Compile the React client with your configured `VITE_API_URL`.
+   * Start the Redis, Prometheus, and Loki services.
+   * Start the backend container, which instantly pushes migrations and seeds your PostgreSQL database.
+3. Access your frontend URL once the build succeeds (usually 2–3 minutes).
 
 ---
 
-## Step 8: Monitoring & Logs
+## Default Administrative Credentials
 
-### 8.1 Access Application Logs
+Once deployed and seeded, you can sign in with:
+* 👑 **MASTER Administrator**: `admin@nutika.ee` / Password: `admin123`
+* 👤 **STANDARD Regular User**: `user@nutika.ee` / Password: `user123`
 
-1. In Coolify resource → **Logs**
-2. View real-time logs from both frontend and backend
-3. Check for errors or warnings
-
-### 8.2 Monitor Resource Usage
-
-- CPU, Memory, Disk usage monitoring
-- Available in **Resource Metrics**
-- Set up alerts if needed
-
-### 8.3 View Database Logs
-
-- Neon PostgreSQL provides web dashboard
-- Access at: https://console.neon.tech
-- Monitor query performance and connections
+> [!CAUTION]
+> Log in and change these passwords immediately inside the Dashboard to secure your instance!
 
 ---
 
-## Step 9: Backing Up Data
+## Monitoring and Logs in Coolify
 
-### 9.1 PostgreSQL Backups
+### 1. Real-Time Logs
+* To view logs, go to your Coolify resource → **Logs**. You can filter by service (`app-backend`, `app-frontend`) to see active API requests, database queries, and automation cycles.
 
-Neon PostgreSQL automatically backups:
-- Set retention policy in Neon console
-- Download backups if needed
+### 2. Prometheus Metrics
+* Scraped metrics are exported at the `/metrics` endpoint. You can configure dashboards in Grafana to track HTTP latencies, CPU/Memory utilization, and active device switching counts.
 
-### 9.2 Redis Persistence
-
-Redis data is persisted to volume:
-```bash
-# In Coolify, volumes are automatically managed
-# Data persists across restarts
-```
-
-### 9.3 Manual Backup
-
-```bash
-# Backup PostgreSQL from Neon console
-# Or export via pg_dump to local file
-pg_dump postgresql://... > backup.sql
-```
+### 3. Health Checks
+* The backend exposes `/health` which returns `200 OK` status and timestamp. Coolify automatically performs health checks and restarts any degraded container.
 
 ---
 
-## Step 10: Troubleshooting
-
-### 10.1 Common Issues
-
-**Issue**: Backend container keeps restarting
-- Check logs: `docker-compose logs app-backend`
-- Verify DATABASE_URL is correct
-- Ensure Neon database is online
-
-**Issue**: Cannot connect to database
-- Verify DATABASE_URL secret is set
-- Test connection with psql
-- Check firewall rules on Neon
-
-**Issue**: Frontend shows "API connection failed"
-- Verify VITE_API_URL is correct
-- Check CORS settings in backend
-- Ensure backend is running: `curl http://localhost:5000/health`
-
-**Issue**: Telegram notifications not working
-- Verify TELEGRAM_BOT_TOKEN is correct
-- Verify TELEGRAM_CHAT_ID is set (numeric ID)
-- Check bot has permission to send messages
-
-### 10.2 Useful Debug Commands
-
-```bash
-# SSH into server
-ssh user@your-server-ip
-
-# Check running containers
-docker-compose ps
-
-# View backend logs
-docker-compose logs -f app-backend
-
-# View frontend logs
-docker-compose logs -f app-frontend
-
-# Connect to database
-docker-compose exec app-backend psql $DATABASE_URL
-
-# Restart services
-docker-compose restart
-
-# Restart specific service
-docker-compose restart app-backend
-```
-
----
-
-## Step 11: Production Best Practices
-
-### 11.1 Security
-
-✅ **Must Do:**
-- [ ] Change default JWT_SECRET to strong random value
-- [ ] Change default seed user passwords
-- [ ] Enable HTTPS/SSL certificates
-- [ ] Set up firewall rules (only allow necessary ports)
-- [ ] Enable authentication on Telegram bot
-- [ ] Keep dependencies updated
-
-❌ **Never Do:**
-- [ ] Commit secrets to git
-- [ ] Use default passwords in production
-- [ ] Expose admin endpoints publicly
-- [ ] Share API tokens or keys
-
-### 11.2 Performance
-
-- Enable Redis caching (already configured)
-- Monitor database query performance
-- Set up CDN for static assets if needed
-- Use Prometheus for metrics monitoring
-
-### 11.3 Monitoring
-
-- Set up email/Slack alerts for failures
-- Monitor application health at `/health`
-- Check Prometheus metrics at `/metrics`
-- Review logs regularly for errors
-
----
-
-## Step 12: Updating Your Application
-
-### 12.1 Pull Request Workflow
-
-1. Create feature branch:
-   ```bash
-   git checkout -b feature/new-feature
-   ```
-
-2. Make changes and commit
-
-3. Push and create pull request
-
-4. GitHub Actions CI/CD runs tests
-
-5. After approval, merge to `main`
-
-6. Coolify auto-deploys within 2-5 minutes
-
-### 12.2 Manual Deployment
-
-If auto-deployment is disabled:
-
-1. In Coolify → Your Resource → **Deploy**
-2. Click **Deploy** button
-3. Monitor deployment progress in logs
-
----
-
-## Step 13: Scaling Considerations
-
-### 13.1 Multiple Instances
-
-For high availability:
-- Deploy multiple backend instances behind load balancer
-- Use single PostgreSQL database (handles connections)
-- Redis cache shared between instances
-
-### 13.2 Database Scaling
-
-- Neon PostgreSQL: Upgrade plan as needed
-- Monitor connection count and query performance
-- Consider read replicas for reporting
-
----
-
-## Useful Links & Resources
-
-- **Coolify Documentation**: https://coolify.io/docs
-- **Neon PostgreSQL**: https://neon.tech
-- **Docker Compose Reference**: https://docs.docker.com/compose/compose-file/
-- **Prisma ORM**: https://www.prisma.io/docs/
-- **Elering API**: https://dashboard.elering.ee/api
-
----
-
-## Support & Troubleshooting
-
-### Getting Help
-
-1. **Check logs**: Always start with application logs
-2. **Verify environment variables**: Double-check all secrets
-3. **Test connectivity**: Verify database and API connectivity
-4. **Review GitHub Actions**: Check CI/CD pipeline status
-
-### Contact
-
-For issues or questions:
-- GitHub Issues: https://github.com/YOUR_USERNAME/nutika-ejt/issues
-- Coolify Community: https://github.com/coollabsio/coolify
-
----
-
-## Next Steps After Deployment
-
-1. ✅ Create initial users with strong passwords
-2. ✅ Add your IoT devices through dashboard
-3. ✅ Configure price thresholds for automation
-4. ✅ Test Telegram notifications
-5. ✅ Monitor application for 24 hours
-6. ✅ Set up regular backups
-7. ✅ Review security settings monthly
-
----
-
-**Deployment Complete!** 🎉
-
-Your Nutika EJT application is now running on Coolify. Monitor it regularly and keep dependencies updated.
+**Your Smart Power Grid Control Center is now live on Coolify! 🏠⚡**
