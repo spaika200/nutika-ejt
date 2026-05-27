@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY package.json bun.lock ./
 COPY tsconfig.json ./
-RUN bun install
+RUN bun install --no-frozen-lockfile
 
 COPY prisma ./prisma
 RUN bunx prisma generate
@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 
 COPY package.json bun.lock ./
 COPY prisma ./prisma
-RUN bun install --production
+RUN bun install --production --no-frozen-lockfile
 RUN bunx prisma generate
 
 COPY --from=builder /app/dist ./dist
