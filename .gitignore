@@ -15,3 +15,11 @@ bun.lockb
 # OS
 .DS_Store
 Thumbs.db
+
+# Grafana Datasources (contains credentials)
+ds.json
+
+# Local logs
+*.log
+backend/coverage/
+coverage/
