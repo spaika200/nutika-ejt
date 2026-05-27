@@ -17,7 +17,8 @@ WORKDIR /app
 # Install ca-certificates for HTTPS requests
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-COPY package.json bun.lock ./
+COPY package.json ./
+COPY --from=builder /app/bun.lock ./bun.lock
 COPY prisma ./prisma
 RUN bun install --production --no-frozen-lockfile
 RUN bunx prisma generate
