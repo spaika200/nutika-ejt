@@ -14,8 +14,8 @@ RUN bun run build
 FROM oven/bun:1
 WORKDIR /app
 
-# Install ca-certificates for HTTPS requests
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+# Install ca-certificates and curl for HTTPS requests and healthchecks
+RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
 COPY --from=builder /app/bun.lock ./bun.lock
